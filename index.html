@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unstable Arena Tierlist</title>
+
+<style>
+body {
+  margin:0;
+  font-family: Arial;
+  background: radial-gradient(circle at top, #111, #000);
+  color:white;
+}
+
+h1 { text-align:center; text-shadow:0 0 10px cyan; }
+
+.topbar {
+  display:flex;
+  justify-content:space-between;
+  padding:10px;
+  margin:10px;
+  background:rgba(255,255,255,0.05);
+  border-radius:10px;
+}
+
+button {
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  background:linear-gradient(90deg,#00ffd5,#0066ff);
+  color:white;
+  cursor:pointer;
+  font-weight:bold;
+}
+
+.board {
+  display:flex;
+  gap:10px;
+  padding:10px;
+}
+
+.tiers {
+  flex:3;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.tier {
+  display:flex;
+  min-height:70px;
+  border-radius:10px;
+  overflow:hidden;
+}
+
+.label {
+  width:90px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:bold;
+  color:black;
+}
+
+.items {
+  flex:1;
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  padding:10px;
+}
+
+.item {
+  padding:8px;
+  background:rgba(255,255,255,0.15);
+  border-radius:8px;
+  cursor:grab;
+}
+
+.locked .item {
+  pointer-events:none;
+  opacity:0.5;
+}
+
+.sidebar {
+  flex:1;
+  padding:10px;
+  border-left:1px solid #333;
+}
+
+#pool {
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>⚔ Unstable Arena Tierlist ⚔</h1>
+
+<div class="topbar">
+  <div id="mode">Mode: LOCKED (VIEW ONLY)</div>
+  <div>
+    <button onclick="login()">Admin Login</button>
+    <button onclick="lock()">Lock</button>
+    <button onclick="addPlayer()">Add Player</button>
+  </div>
+</div>
+
+<div class="board">
+  <div class="tiers" id="tiers"></div>
+
+  <div class="sidebar">
+    <h3>UNRANKED</h3>
+    <div id="pool"></div>
+  </div>
+</div>
+
+<script>
+
+const tiers = ["HT1","LT1","HT2","LT2","HT3","LT3","HT4","LT4","HT5","LT5"];
+
+let isAdmin = false;
+
+let players = JSON.parse(localStorage.getItem("players") || "[]");
+let tierData = JSON.parse(localStorage.getItem("tiers") || "{}");
+
+function save() {
+  localStorage.setItem("players", JSON.stringify(players));
+  localStorage.setItem("tiers", JSON.stringify(tierData));
+}
+
+function createItem(name, id) {
+  const div = document.createElement("div");
+  div.className = "item";
+  div.textContent = name;
+  div.id = id || "id" + Math.random();
+
+  div.draggable = true;
+
+  div.ondragstart = e => {
+    if (!isAdmin) return;
+    e.dataTransfer.setData("text", div.id);
+  };
+
+  return div;
+}
+
+function render() {
+  const container = document.getElementById("tiers");
+  container.innerHTML = "";
+
+  tiers.forEach((t,i)=>{
+
+    const row = document.createElement("div");
+    row.className = "tier";
+
+    const label = document.createElement("div");
+    label.className = "label";
+    label.style.background = `hsl(${i*30},80%,60%)`;
+    label.textContent = t;
+
+    const items = document.createElement("div");
+    items.className = "items";
+    items.dataset.tier = t;
+
+    items.ondragover = e => e.preventDefault();
+
+    items.ondrop = e => {
+      if (!isAdmin) return;
+      const id = e.dataTransfer.getData("text");
+      items.appendChild(document.getElementById(id));
+      saveTier();
+    };
+
+    (tierData[t] || []).forEach(x=>{
+      items.appendChild(createItem(x));
+    });
+
+    row.appendChild(label);
+    row.appendChild(items);
+    container.appendChild(row);
+  });
+
+  renderPool();
+}
+
+function renderPool() {
+  const pool = document.getElementById("pool");
+  pool.innerHTML = "";
+
+  players.forEach((p,i)=>{
+    pool.appendChild(createItem(p,"p"+i));
+  });
+
+  pool.ondragover = e => e.preventDefault();
+
+  pool.ondrop = e => {
+    if (!isAdmin) return;
+    const id = e.dataTransfer.getData("text");
+    pool.appendChild(document.getElementById(id));
+    saveTier();
+  };
+}
+
+function saveTier() {
+  const data = {};
+
+  document.querySelectorAll(".items").forEach(t=>{
+    data[t.dataset.tier] = Array.from(t.children).map(i=>i.textContent);
+  });
+
+  tierData = data;
+  save();
+}
+
+function login() {
+  const pass = prompt("Admin password:");
+  if (pass === "Elioisthebestownerever.") {
+    isAdmin = true;
+    document.body.classList.remove("locked");
+    document.getElementById("mode").innerText = "Mode: ADMIN";
+    alert("Admin unlocked");
+  } else {
+    alert("Wrong password");
+  }
+}
+
+function lock() {
+  isAdmin = false;
+  document.body.classList.add("locked");
+  document.getElementById("mode").innerText = "Mode: LOCKED (VIEW ONLY)";
+}
+
+function addPlayer() {
+  if (!isAdmin) return alert("Admin only");
+  const name = prompt("Player name:");
+  if (name) {
+    players.push(name);
+    save();
+    render();
+  }
+}
+
+render();
+
+</script>
+
+</body>
+</html>
